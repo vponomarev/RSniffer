@@ -1,0 +1,9 @@
+RSniffer
+==================================================
+
+RSniffer is a small tool, that allows to send pcap stream to remote host for futher analysis.
+Main idea is analyze traffic on the linux server using GUI Wireshark on desktop PC.
+
+Usage scheme:
+(Linux server) RSniffer ==[UDP TZSP stream]==> (Linux/windows desktop) GUI Wireshark
+
