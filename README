@@ -34,3 +34,13 @@ Usage: ./rsniffer [-h] [-l] [-E] [-s] [-i INTERFACE] [-p DEST_PORT] DEST_HOST FI
 	-s		Silent: do not print counters during processing
 	DEST_HOST	Send UDP flow to specified host
 	FILTER_RULE	Filter rule for pcap library
+
+
+How to compile
+==================================================
+RSniffer requires pcap-devel library to be installed on your server.
+Additionally you also need:
+gcc
+make
+
+
