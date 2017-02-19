@@ -2,8 +2,35 @@ RSniffer
 ==================================================
 
 RSniffer is a small tool, that allows to send pcap stream to remote host for futher analysis.
-Main idea is analyze traffic on the linux server using GUI Wireshark on desktop PC.
+Main idea is to analyze traffic of the linux server using GUI Wireshark on desktop PC.
+Optionally you can collect the traffic of several servers into dedicated trace server.
 
 Usage scheme:
-(Linux server) RSniffer ==[UDP TZSP stream]==> (Linux/windows desktop) GUI Wireshark
+(Linux server) RSniffer ==[UDP TZSP/ERSPAN stream]==> (Linux/windows desktop) GUI Wireshark
 
+
+How to run without ROOT privileges
+==================================================
+Normally rsniffer requires root privilleges to listen interfaces.
+So, you can run it from root user or via sudo.
+
+But there is an alternative solution - use setcap to grant rsniffer binary with required privileges.
+Just run the following command:
+[root@server ~]# setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' ./rsniffer
+
+
+HELP
+==================================================
+rsniffer: capture packets via libpcap and transmit captured flow to external box using TZSP or ERSPAN protocol.
+
+Usage: ./rsniffer [-h] [-l] [-E] [-s] [-i INTERFACE] [-p DEST_PORT] DEST_HOST FILTER_RULE
+       ./rsniffer -l
+	-v		Show version
+	-l		List available INTERFACEs
+	-h		Display this message
+	-i		Capture interface (default: first interface)
+	-p		Destination UDP port (default: 37008)
+	-E		Use ERSPAN protocol (default: TZSP)
+	-s		Silent: do not print counters during processing
+	DEST_HOST	Send UDP flow to specified host
+	FILTER_RULE	Filter rule for pcap library
