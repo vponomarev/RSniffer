@@ -1,7 +1,7 @@
 all: rsniffer
 
 rsniffer: rsniffer.c
-	gcc -lpcap rsniffer.c -o rsniffer
+	gcc -I/usr/include/pcap -lpcap rsniffer.c -o rsniffer
 
 clean:
 	rm rsniffer
