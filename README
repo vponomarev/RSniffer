@@ -42,5 +42,5 @@ RSniffer requires pcap-devel library to be installed on your server.
 Additionally you also need:
 gcc
 make
-
+libpcap-dev
 
