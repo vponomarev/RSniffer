@@ -30,8 +30,7 @@ struct  tzsp_hdr {
 	    uint8_t encapH;
 	    uint8_t encapL;
 
-	    uint8_t tagType;
-	    uint8_t tagLen;
+	    uint8_t tagEnd;
 	} tzspHdr;
 
 struct gre_hdr {
@@ -284,11 +283,10 @@ int main(int argc,char **argv) {
 	}
 
 	tzspHdr.version = 1;
-	tzspHdr.type = 1;
+	tzspHdr.type = 0;
 	tzspHdr.encapH = 0;
 	tzspHdr.encapL = 1;
-	tzspHdr.tagType = 0;
-	tzspHdr.tagLen = 1;
+	tzspHdr.tagEnd = 1;
 
 	txBuf = malloc(MAX_CAPTURE_BUFFER_SIZE + sizeof(tzspHdr));
 
