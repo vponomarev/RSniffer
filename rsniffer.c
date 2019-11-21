@@ -11,8 +11,8 @@
 
 #define TZSP_DEFAULT_PORT 37008
 
-#define VERSION "01"
-#define BUILD "2016-12-06 22:23"
+#define VERSION "02"
+#define BUILD "2019-11-22 00:02"
 #define AUTHOR "vitaly.ponomarev@gmail.com"
 
 #define PROTO_TZSP 0
