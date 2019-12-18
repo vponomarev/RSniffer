@@ -32,6 +32,7 @@ Usage: ./rsniffer [-h] [-l] [-E] [-s] [-i INTERFACE] [-p DEST_PORT] DEST_HOST FI
 	-p		Destination UDP port (default: 37008)
 	-E		Use ERSPAN protocol (default: TZSP)
 	-s		Silent: do not print counters during processing
+	-x		TZSP: Add packet counter tag
 	DEST_HOST	Send UDP flow to specified host
 	FILTER_RULE	Filter rule for pcap library
 
