@@ -11,8 +11,8 @@
 
 #define TZSP_DEFAULT_PORT 37008
 
-#define VERSION "02"
-#define BUILD "2019-11-22 00:02"
+#define VERSION "03"
+#define BUILD "2019-12-18 01:00"
 #define AUTHOR "vitaly.ponomarev@gmail.com"
 
 #define PROTO_TZSP 0
@@ -22,16 +22,69 @@
 
 int	streamSocket;
 int	flagSilent;
+int	flagTZSPComplex;
 int	flagProto;
 struct 	sockaddr_in streamDestination;
-struct  tzsp_hdr {
+struct tzsp_hdr {
+	    // Current version: 0x01
 	    uint8_t version;
+	    // 4bit FLAGS + 4bit TYPE
+	    // FLAGS:
+	    // 	0 - Set to 1 if the frame does not contain the tagged fields section. Set to zero if the tagged fields section exists
+	    //	1 - Set to 1 if the frame does not contain the packet data section. Set to zero if the packet data section exists
+	    //	2 - Reserved. Must be set to zero
+	    //	3 - Reserved. Must be set to zero
+
+	    // TYPE:
+	    //	0 (RX_PACKET)	- The frame contains information about one or more packets which were received by a sensor
+	    //	1 (TX_PACKET)	- The frame contains a packet which the sensor should transmit. Transmit capability is only supported in WSP100 firmware 1.1.217 or newer
+	    //	3 (CONFIG)	- The frame contains configuration information to modify the behaviour of a sensor
+	    //	4 (NULL)	- NULL frame. The frame contains no data and is used as a keepalive
+	    //	5 (PORT)	- Used to open a NAT tunnel
+	    //	- (-)		- All other values are reserved
 	    uint8_t type;
+
+	    // ENCAPSULATION
+	    //	0	- Unknown
+	    //	1	- Ethernet
+	    //	2	- Token ring
+	    //	3	- SLIP
+	    //	4	- PPP
+	    //	5	- FDDI
+	    //	6	- Raw UO
+	    //	7	- 802.11
 	    uint8_t encapH;
 	    uint8_t encapL;
+};
 
+
+struct tzsp_hdr_end	{
 	    uint8_t tagEnd;
-	} tzspHdr;
+};
+
+struct tzsp_hdr_tag4b {
+	    uint8_t	tagID;
+	    uint8_t	tagLen;
+
+	    //	4byte counter;
+	    uint8_t	tagValue[4];
+};
+
+
+// SIMPLE
+struct tzsp_simple {
+	struct tzsp_hdr	hdr;
+	struct tzsp_hdr_end	end;
+} tzspSimple;
+
+
+// COMPLEX
+struct tzsp_complex {
+	struct tzsp_hdr	hdr;
+	struct tzsp_hdr_tag4b	counter;
+	struct tzsp_hdr_end	end;
+} tzspComplex;
+
 
 struct gre_hdr {
     uint16_t	hdr;
@@ -61,6 +114,7 @@ void usage(const char *prog) {
 	"\t-p		Destination UDP port (default: 37008)\n"
 	"\t-E		Use ERSPAN protocol (default: TZSP)\n"
 	"\t-s		Silent: do not print counters during processing\n"
+	"\t-x		TZSP: Add packet counter tag\n"
 	"\tDEST_HOST	Send UDP flow to specified host\n"
 	"\tFILTER_RULE	Filter rule for pcap library\n"
 	"\n",
@@ -108,7 +162,7 @@ void list_devs() {
 void my_callback(u_char *args, const struct pcap_pkthdr* hdr, const u_char* packet) { 
 	// Transmission buffer
 
-	static int count = 1;
+	static uint64_t count = 1;
 	static long bytes = 0;
 	if (!flagSilent) {
 	    fprintf(stdout, "\r%4u (%lu bytes)", count, bytes);
@@ -125,8 +179,20 @@ void my_callback(u_char *args, const struct pcap_pkthdr* hdr, const u_char* pack
 	    memcpy(txBuf + offset, &ers, sizeof(ers));
 	    offset += sizeof(ers);
 	} else {
-	    memcpy(txBuf, &tzspHdr, sizeof(tzspHdr));
-	    offset += sizeof(tzspHdr);
+	    if (flagTZSPComplex) {
+		// Prepare counter
+		tzspComplex.counter.tagValue[0] = count >> 24;
+		tzspComplex.counter.tagValue[1] = (count >> 16) & 0xFF;
+		tzspComplex.counter.tagValue[2] = (count >> 8) & 0xFF;
+		tzspComplex.counter.tagValue[3] = (count) & 0xFF;
+
+		memcpy(txBuf, &tzspComplex, sizeof(tzspComplex));
+	        offset += sizeof(tzspComplex);
+	    } else {
+		memcpy(txBuf, &tzspSimple, sizeof(tzspSimple));
+	        offset += sizeof(tzspSimple);
+	    }
+
 	}
 	memcpy(txBuf + offset, packet, (hdr->caplen<MAX_CAPTURE_BUFFER_SIZE)?hdr->caplen:MAX_CAPTURE_BUFFER_SIZE);
 
@@ -159,11 +225,12 @@ int main(int argc,char **argv) {
 	dest_port	= TZSP_DEFAULT_PORT;
 	dest_host	= NULL;
 	flagSilent	= 0;
+	flagTZSPComplex	= 0;
 	flagProto	= PROTO_TZSP;
 
 	// Load command-line parameters
 	int ch;
-	while ((ch = getopt(argc, argv, "vslhEi:p:")) != -1) {
+	while ((ch = getopt(argc, argv, "vslhExi:p:")) != -1) {
 	    switch (ch) {
 		case 'v':	version();
 				exit(1);
@@ -172,6 +239,9 @@ int main(int argc,char **argv) {
 				break;
 
 		case 's':	flagSilent = 1;
+				break;
+
+		case 'x':	flagTZSPComplex = 1;
 				break;
 
 		case 'h':	usage(argv[0]);
@@ -219,6 +289,9 @@ int main(int argc,char **argv) {
 	printf("Sniffing device : %s\n", dev);
 	printf("Sniffing filter : %s\n", filter_rule);
 	printf("Destination host: %s udp/%u\n", dest_host, dest_port);
+	if (flagTZSPComplex) {
+    	    printf("TZSP Complex    : yes\n");
+	}
 
 	// Get device info
 	pcap_lookupnet(dev, &netp, &maskp, errbuf); 
@@ -232,7 +305,7 @@ int main(int argc,char **argv) {
 	    }
 	} else {
 	    // Open PCAP session
-	    descr = pcap_open_live(dev, BUFSIZ, 1,-1, errbuf); 
+	    descr = pcap_open_live(dev, BUFSIZ, 1,1, errbuf); 
 	    if(descr == NULL) {
 		printf("pcap_open_live(): cannot open device [%s] with error: %s\n", dev, errbuf);
 		exit(1);
@@ -282,13 +355,32 @@ int main(int argc,char **argv) {
     	    exit(1);
 	}
 
-	tzspHdr.version = 1;
-	tzspHdr.type = 0;
-	tzspHdr.encapH = 0;
-	tzspHdr.encapL = 1;
-	tzspHdr.tagEnd = 1;
+	// Prepare simple structure
+	if (flagTZSPComplex) {
+	    // Prepare complex structure
+	    tzspComplex.hdr.version	= 1;
+	    tzspComplex.hdr.type	= 0;
+	    tzspComplex.hdr.encapH	= 0;
+	    tzspComplex.hdr.encapL	= 1;
+	    tzspComplex.counter.tagID	= 40;	// TAG_PACKET_COUNT = 40 (0x28) [This is a monotonically increasing packet count. It is stored as a four byte unsigned int ]
+	    tzspComplex.counter.tagLen	= 4;
+	    tzspComplex.counter.tagValue[0] = 0;
+	    tzspComplex.counter.tagValue[1] = 0;
+	    tzspComplex.counter.tagValue[2] = 0;
+	    tzspComplex.counter.tagValue[3] = 0;
+	    tzspComplex.end.tagEnd	= 1;
 
-	txBuf = malloc(MAX_CAPTURE_BUFFER_SIZE + sizeof(tzspHdr));
+	    txBuf = malloc(MAX_CAPTURE_BUFFER_SIZE + sizeof(tzspComplex));
+	} else {
+	    tzspSimple.hdr.version	= 1;
+	    tzspSimple.hdr.type	= 0;
+	    tzspSimple.hdr.encapH	= 0;
+	    tzspSimple.hdr.encapL	= 1;
+	    tzspSimple.end.tagEnd	= 1;
+
+	    txBuf = malloc(MAX_CAPTURE_BUFFER_SIZE + sizeof(tzspSimple));
+	}
+
 
 	// Last message
 	printf("Starting loop..\n");
