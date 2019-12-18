@@ -165,7 +165,7 @@ void my_callback(u_char *args, const struct pcap_pkthdr* hdr, const u_char* pack
 	static uint64_t count = 1;
 	static long bytes = 0;
 	if (!flagSilent) {
-	    fprintf(stdout, "\r%4u (%lu bytes)", count, bytes);
+	    fprintf(stdout, "\r%4llu (%lu bytes)", count, bytes);
 	    fflush(stdout);
 	}
 	count++; 
