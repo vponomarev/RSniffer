@@ -19,4 +19,12 @@ jobs:
     - name: make
       run: |
         make
+        mkdir out
+        cp rsniffer out/
+        cp README out/
         ls -l
+    - name: Upload binary
+      uses: actions/upload-artifact@master
+      with:
+        name: linux_x86-64
+        path: out
